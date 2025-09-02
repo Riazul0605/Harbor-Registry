@@ -1,0 +1,185 @@
+Install Harbor Registry with Helm in Kubernetes cluster
+✅ Prerequisites
+Kubernetes cluster (e.g., Minikube, Kind, EKS, GKE, etc.)
+kubectl configured to connect to the cluster
+Helm installed (version 3+)
+(Optional) Ingress controller installed (e.g., NGINX Ingress)
+
+Install helm if not installed
+
+#apt-get install apt-transport-https --yes
+#curl https://baltocdn.com/helm/signing.asc | sudo apt-key add -
+echo "deb https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+#apt-get update
+#apt-get install helm
+
+Add the Harbor Helm Chart Repository
+
+#helm repo add harbor https://helm.goharbor.io
+#helm repo update
+
+Install ingress-nginx controller
+
+#helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#helm repo update
+
+#helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace
+ 
+#kubectl get all -n ingress-nginx
+#kubectl get svc -n ingress-nginx
+
+Look for the EXTERNAL-IP of the ingress-nginx-controller service.
+
+Download a Helm chart locally
+
+#helm fetch harbor/harbor --untar
+#cd harbor/
+
+Change and add values into only below lines.
+
+#nano values.yaml
+
+31c31
+<       core: core.harbor.domain 
+---
+>       core: harbor.example.com 
+41c41
+<     className: ""
+---
+>     className: "nginx"
+48a49
+>       nginx.org/client-max-body-size: "0"
+112c113
+< externalURL: https://core.harbor.domain 
+---
+> externalURL: https://harbor.example.com 
+129a131,133
+>       podSecurityContext:
+>         runAsUser: 10000
+>         fsGroup: 10000
+140a145
+>       mountPath: /storage/docker
+889a895,897
+>     podSecurityContext:
+>       runAsUser: 999
+>       fsGroup: 999
+
+
+Create a Namespace for Harbor
+
+#kubectl create namespace harbor
+
+Run below 6 commands in all worker nodes.
+
+#mkdir /mnt/data/harbor-redis/
+#chown -R 999:999 /mnt/data/harbor-redis/
+#chmod -R 755 /mnt/data/harbor-redis/
+#mkdir /mnt/data/harbor-redis-1/
+#chown -R 10000:10000 /mnt/data/harbor-redis-1/
+#chmod -R 755 /mnt/data/harbor-redis-1/
+
+Now, we have to create all the pv before installing the harbor.
+
+#nano pv-1.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-redis-pv-1
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/harbor-redis"
+
+
+#kubectl apply -f /root/harbor/pv-1.yaml
+#nano pv-2.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-redis-pv-2
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/harbor-redis"
+
+#kubectl apply -f /root/harbor/pv-2.yaml
+#nano pv-3.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-redis-pv-3
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/harbor-redis"
+
+#kubectl apply -f /root/harbor/pv-3.yaml
+#nano pv-4.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-redis-pv-4
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/harbor-redis-1"
+
+#kubectl apply -f /root/harbor/pv-4.yaml
+#nano pv-5.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-redis-pv-5
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/harbor-redis"
+
+#kubectl apply -f /root/harbor/pv-5.yaml
+#kubectl get pv
+#kubectl get pvc -n harbor
+
+Install Harbor via Helm
+
+#helm install harbor harbor/harbor -f values.yaml -n harbor
+
+#kubectl get pods -n harbor
+#kubectl get svc -n harbor
+#kubectl get all -n harbor
+#kubectl get pods -o wide -n harbor
+#kubectl get ingress -n harbor
+
+For any change in values.yaml file we need to apply changes by:
+
+#helm upgrade harbor harbor/harbor -f values.yaml -n harbor
+
+Open browser: https://harbor.example.com/ 
+
+Default login:
+Username: admin
+Password: Harbor12345
+    - name: harbor-reg-cred
+
+
+
